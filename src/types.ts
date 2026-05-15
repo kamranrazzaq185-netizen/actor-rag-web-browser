@@ -139,7 +139,13 @@ export type Output = {
         description?: string | null;
         author?: string | null;
         languageCode?: string | null;
+
+        logo?: string | null;
+        ogImage?: string | null;
+        favicon?: string | null;
+        appleTouchIcon?: string | null;
     };
+
 };
 
 export type ContentCrawlerOptions = {
