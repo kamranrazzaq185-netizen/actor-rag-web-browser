@@ -125,28 +125,73 @@ async function handleContent(
     const isTooLarge = processedHtml.length > settings.maxHtmlCharsToProcess;
     const text = isTooLarge ? load(processedHtml).text() : htmlToText(load(processedHtml).html());
 
-    const result: Output = {
-        crawl: {
-            httpStatusCode: statusCode,
-            httpStatusMessage: 'OK',
-            loadedAt: new Date(),
-            uniqueKey: request.uniqueKey,
-            requestStatus: ContentCrawlerStatus.HANDLED,
-        },
-        searchResult: request.userData.searchResult!,
-        metadata: {
-            author: $('meta[name=author]').first().attr('content') ?? undefined,
-            title: $('title').first().text(),
-            description: $('meta[name=description]').first().attr('content') ?? undefined,
-            languageCode: $html.first().attr('lang') ?? undefined,
-            url: request.url,
-            redirectedUrl: request.loadedUrl,
-        },
-        query: request.userData.query,
-        text: settings.outputFormats.includes('text') ? text : undefined,
-        markdown: settings.outputFormats.includes('markdown') ? htmlToMarkdown(processedHtml) : undefined,
-        html: settings.outputFormats.includes('html') ? processedHtml : undefined,
-    };
+   const rawOgImage =
+    $('meta[property="og:image"]').first().attr('content')
+    ?? undefined;
+
+const rawFavicon =
+    $('link[rel*="icon"]').first().attr('href')
+    ?? undefined;
+
+const rawAppleIcon =
+    $('link[rel="apple-touch-icon"]').first().attr('href')
+    ?? undefined;
+
+const normalizeUrl = (url?: string) => {
+    if (!url) return undefined;
+
+    try {
+        return new URL(url, request.loadedUrl ?? request.url).href;
+    } catch {
+        return url;
+    }
+};
+
+const ogImage = normalizeUrl(rawOgImage);
+const favicon = normalizeUrl(rawFavicon);
+const appleTouchIcon = normalizeUrl(rawAppleIcon);
+
+const logo = ogImage || appleTouchIcon || favicon;
+
+const result: Output = {
+    crawl: {
+        httpStatusCode: statusCode,
+        httpStatusMessage: 'OK',
+        loadedAt: new Date(),
+        uniqueKey: request.uniqueKey,
+        requestStatus: ContentCrawlerStatus.HANDLED,
+    },
+
+    searchResult: request.userData.searchResult!,
+
+    metadata: {
+        author: $('meta[name=author]').first().attr('content') ?? undefined,
+        title: $('title').first().text(),
+        description: $('meta[name=description]').first().attr('content') ?? undefined,
+        languageCode: $html.first().attr('lang') ?? undefined,
+        url: request.url,
+        redirectedUrl: request.loadedUrl,
+
+        logo,
+        ogImage,
+        favicon,
+        appleTouchIcon,
+    },
+
+    query: request.userData.query,
+
+    text: settings.outputFormats.includes('text')
+        ? text
+        : undefined,
+
+    markdown: settings.outputFormats.includes('markdown')
+        ? htmlToMarkdown(processedHtml)
+        : undefined,
+
+    html: settings.outputFormats.includes('html')
+        ? processedHtml
+        : undefined,
+};
 
     addTimeMeasureEvent(request.userData, `${crawlerType}-before-response-send`);
     if (settings.debugMode) {
