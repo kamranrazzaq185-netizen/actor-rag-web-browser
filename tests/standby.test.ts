@@ -7,7 +7,7 @@ import {
     expect,
 } from 'vitest';
 
-import { createAndStartContentCrawler, createAndStartSearchCrawler } from '../src/crawlers';
+import { createAndStartContentCrawler } from '../src/crawlers';
 import { processStandbyInput } from '../src/input';
 import { createServer } from '../src/server';
 import { startTestServer, stopTestServer } from './helpers/server';
@@ -23,7 +23,6 @@ describe('Standby RAG tests', () => {
         testServer = startTestServer(testServerPort);
 
         const {
-            searchCrawlerOptions,
             contentCrawlerOptions,
         } = await processStandbyInput({
             scrapingTool: 'raw-http',
@@ -31,7 +30,6 @@ describe('Standby RAG tests', () => {
 
         const startCrawlers = async () => {
             const promises: Promise<unknown>[] = [];
-            promises.push(createAndStartSearchCrawler(searchCrawlerOptions));
             for (const settings of contentCrawlerOptions) {
                 promises.push(createAndStartContentCrawler(settings));
             }
