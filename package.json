@@ -1,8 +1,8 @@
 {
-	"name": "rag-web-browser",
+	"name": "single-page-scraper",
 	"version": "0.0.1",
 	"type": "module",
-	"description": "RAG Web Browser - run Google Search queries and extract content from the top search results.",
+	"description": "Apify Actor that scrapes one web page and returns cleaned text, Markdown, or HTML.",
 	"engines": {
 		"node": ">=18.0.0"
 	},
