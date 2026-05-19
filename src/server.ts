@@ -11,7 +11,7 @@ export function createServer(): express.Express {
     const mcpServer = new RagWebBrowserServer();
     let transport: SSEServerTransport;
 
-    const HELP_MESSAGE = `Send a GET request to ${process.env.ACTOR_STANDBY_URL}/search?query=hello+world`
+    const HELP_MESSAGE = `Send a GET request to ${process.env.ACTOR_STANDBY_URL}/search?query=https%3A%2F%2Fexample.com`
         + ` or to ${process.env.ACTOR_STANDBY_URL}/messages to use Model context protocol.`;
 
     app.get('/', async (req, res) => {
