@@ -1,6 +1,6 @@
 import type { ProxyConfigurationOptions } from 'apify';
 import { Actor } from 'apify';
-import type { CheerioCrawlerOptions, ProxyConfiguration } from 'crawlee';
+import type { ProxyConfiguration } from 'crawlee';
 import { BrowserName, log } from 'crawlee';
 import { firefox } from 'playwright';
 
@@ -13,7 +13,6 @@ import type {
     Input,
     OutputFormats,
     ScrapingTool,
-    SERPProxyGroup,
 } from './types.js';
 
 /**
@@ -21,7 +20,7 @@ import type {
  * because it makes it simple to start all crawlers at once.
  */
 export async function processStandbyInput(originalInput: Partial<Input>) {
-    const { input, searchCrawlerOptions, contentScraperSettings } = await processInputInternal(originalInput, true);
+    const { input, contentScraperSettings } = await processInputInternal(originalInput, true);
 
     const proxy = await Actor.createProxyConfiguration(input.proxyConfiguration);
     const contentCrawlerOptions: ContentCrawlerOptions[] = [
@@ -29,21 +28,21 @@ export async function processStandbyInput(originalInput: Partial<Input>) {
         createCheerioCrawlerOptions(input, proxy),
     ];
 
-    return { input, searchCrawlerOptions, contentCrawlerOptions, contentScraperSettings };
+    return { input, contentCrawlerOptions, contentScraperSettings };
 }
 
 /**
  * Processes the input and returns the settings for the crawler.
  */
 export async function processInput(originalInput: Partial<Input>) {
-    const { input, searchCrawlerOptions, contentScraperSettings } = await processInputInternal(originalInput);
+    const { input, contentScraperSettings } = await processInputInternal(originalInput);
 
     const proxy = await Actor.createProxyConfiguration(input.proxyConfiguration);
     const contentCrawlerOptions: ContentCrawlerOptions = input.scrapingTool === 'raw-http'
         ? createCheerioCrawlerOptions(input, proxy, false)
         : createPlaywrightCrawlerOptions(input, proxy, false);
 
-    return { input, searchCrawlerOptions, contentCrawlerOptions, contentScraperSettings };
+    return { input, contentCrawlerOptions, contentScraperSettings };
 }
 
 /**
@@ -60,8 +59,6 @@ async function processInputInternal(
     const {
         debugMode,
         dynamicContentWaitSecs,
-        serpMaxRetries,
-        serpProxyGroup,
         outputFormats,
         readableTextCharThreshold,
         removeElementsCssSelector,
@@ -70,14 +67,6 @@ async function processInputInternal(
     } = input;
 
     log.setLevel(debugMode ? log.LEVELS.DEBUG : log.LEVELS.INFO);
-
-    const proxySearch = await Actor.createProxyConfiguration({ groups: [serpProxyGroup] });
-    const searchCrawlerOptions: CheerioCrawlerOptions = {
-        keepAlive: standbyInit,
-        maxRequestRetries: serpMaxRetries,
-        proxyConfiguration: proxySearch,
-        autoscaledPoolOptions: { desiredConcurrency: 1 },
-    };
 
     const contentScraperSettings: ContentScraperSettings = {
         debugMode,
@@ -90,7 +79,7 @@ async function processInputInternal(
         removeElementsCssSelector,
     };
 
-    return { input, searchCrawlerOptions, contentScraperSettings };
+    return { input, contentScraperSettings };
 }
 
 function createPlaywrightCrawlerOptions(
@@ -179,17 +168,10 @@ function validateAndFillInput(input: Partial<Input>, standbyInit: boolean): Inpu
 
     // Throw an error if the query is not provided and standbyInit is false.
     if (!input.query && !standbyInit) {
-        throw new UserInputError('The `query` parameter must be provided and non-empty.');
+        throw new UserInputError('The `query` parameter must be a non-empty HTTP or HTTPS URL.');
+    } else if (input.query && !/^https?:\/\//i.test(input.query)) {
+        throw new UserInputError('This Actor scrapes one page only. The `query` parameter must be an HTTP or HTTPS URL.');
     }
-
-    // Max results
-    input.maxResults = validateRange(
-        input.maxResults,
-        inputSchema.properties.maxResults.minimum,
-        inputSchema.properties.maxResults.maximum,
-        inputSchema.properties.maxResults.default,
-        'maxResults',
-    );
 
     // Output formats
     if (!input.outputFormats || input.outputFormats.length === 0) {
@@ -206,22 +188,6 @@ function validateAndFillInput(input: Partial<Input>, standbyInit: boolean): Inpu
         inputSchema.properties.requestTimeoutSecs.maximum,
         inputSchema.properties.requestTimeoutSecs.default,
         'requestTimeoutSecs',
-    );
-
-    // SERP proxy group
-    if (!input.serpProxyGroup || input.serpProxyGroup.length === 0) {
-        input.serpProxyGroup = inputSchema.properties.serpProxyGroup.default as SERPProxyGroup;
-    } else if (input.serpProxyGroup !== 'GOOGLE_SERP' && input.serpProxyGroup !== 'SHADER') {
-        throw new UserInputError('The `serpProxyGroup` parameter must be either `GOOGLE_SERP` or `SHADER`.');
-    }
-
-    // SERP max retries
-    input.serpMaxRetries = validateRange(
-        input.serpMaxRetries,
-        inputSchema.properties.serpMaxRetries.minimum,
-        inputSchema.properties.serpMaxRetries.maximum,
-        inputSchema.properties.serpMaxRetries.default,
-        'serpMaxRetries',
     );
 
     // Proxy configuration
