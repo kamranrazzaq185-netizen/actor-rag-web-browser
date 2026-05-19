@@ -18,12 +18,7 @@ export type Input = {
     debugMode: boolean;
     requestTimeoutSecs: number;
 
-    // google search parameters
-    countryCode: string;
-    languageCode: string;
-    maxResults: number;
-    serpProxyGroup: SERPProxyGroup;
-    serpMaxRetries: number;
+    // target page
     query: string;
 
     // content crawler parameters
