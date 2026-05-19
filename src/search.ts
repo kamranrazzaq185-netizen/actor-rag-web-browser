@@ -1,9 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-import { type CheerioCrawlerOptions, log } from 'crawlee';
+import { log } from 'crawlee';
 
 import { PLAYWRIGHT_REQUEST_TIMEOUT_NORMAL_MODE_SECS, Routes } from './const.js';
-import { addContentCrawlRequest, addSearchRequest, createAndStartContentCrawler, createAndStartSearchCrawler } from './crawlers.js';
+import { addContentCrawlRequest, createAndStartContentCrawler } from './crawlers.js';
 import { UserInputError } from './errors.js';
 import { processInput } from './input.js';
 import { createResponsePromise } from './responses.js';
@@ -11,48 +11,34 @@ import type { ContentCrawlerOptions, ContentScraperSettings, Input, Output } fro
 import {
     addTimeMeasureEvent,
     createRequest,
-    createSearchRequest,
     interpretAsUrl,
     parseParameters,
     randomId,
 } from './utils.js';
 
 /**
- * Prepares the request for the search.
- * Decide whether input.query is a URL or a search query. If it's a URL, we don't need to run the search crawler.
- * Return the request, isUrl and responseId.
+ * Prepares one content request for a single target page.
  */
 function prepareRequest(
     input: Input,
-    searchCrawlerOptions: CheerioCrawlerOptions,
-    contentCrawlerKey: string,
     contentScraperSettings: ContentScraperSettings,
 ) {
     const interpretedUrl = interpretAsUrl(input.query);
-    const query = interpretedUrl ?? input.query;
-    const responseId = randomId();
+    if (!interpretedUrl) {
+        throw new UserInputError('This Actor scrapes one page only. Provide a valid HTTP or HTTPS URL in `query`.');
+    }
 
-    const req = interpretedUrl
-        ? createRequest(
-            query,
-            { url: query },
-            responseId,
-            contentScraperSettings,
-            null,
-        )
-        : createSearchRequest(
-            {
-                query,
-                responseId,
-                maxResults: input.maxResults,
-                contentCrawlerKey,
-                contentScraperSettings,
-            },
-            searchCrawlerOptions.proxyConfiguration,
-        );
+    const responseId = randomId();
+    const req = createRequest(
+        interpretedUrl,
+        { url: interpretedUrl },
+        responseId,
+        contentScraperSettings,
+        null,
+    );
 
     addTimeMeasureEvent(req.userData!, 'request-received', Date.now());
-    return { req, isUrl: !!interpretedUrl, responseId };
+    return { req, responseId };
 }
 
 /**
@@ -63,36 +49,24 @@ async function runSearchProcess(params: Partial<Input>): Promise<Output[]> {
     // Process the query parameters the same way as normal inputs
     const {
         input,
-        searchCrawlerOptions,
         contentCrawlerOptions,
         contentScraperSettings,
     } = await processInput(params);
 
-    // Set keepAlive to true to find the correct crawlers
-    searchCrawlerOptions.keepAlive = true;
     contentCrawlerOptions.crawlerOptions.keepAlive = true;
 
-    await createAndStartSearchCrawler(searchCrawlerOptions);
     const { key: contentCrawlerKey } = await createAndStartContentCrawler(contentCrawlerOptions);
 
-    const { req, isUrl, responseId } = prepareRequest(
+    const { req, responseId } = prepareRequest(
         input,
-        searchCrawlerOptions,
-        contentCrawlerKey,
         contentScraperSettings,
     );
 
     // Create a promise that resolves when all requests are processed
     const resultsPromise = createResponsePromise(responseId, input.requestTimeoutSecs);
 
-    if (isUrl) {
-        // If input is a direct URL, skip the search crawler
-        log.info(`Skipping Google Search query as "${input.query}" is a valid URL`);
-        await addContentCrawlRequest(req, responseId, contentCrawlerKey);
-    } else {
-        // If input is a search query, run the search crawler first
-        await addSearchRequest(req, searchCrawlerOptions);
-    }
+    log.info(`Scraping single page: ${input.query}`);
+    await addContentCrawlRequest(req, responseId, contentCrawlerKey);
 
     // Return promise that resolves when all requests are processed
     return resultsPromise;
@@ -139,7 +113,6 @@ export async function handleModelContextProtocol(params: Partial<Input>): Promis
  * Runs the search and scrape in normal mode.
  */
 export async function handleSearchNormalMode(input: Input,
-    searchCrawlerOptions: CheerioCrawlerOptions,
     contentCrawlerOptions: ContentCrawlerOptions,
     contentScraperSettings: ContentScraperSettings,
 ) {
@@ -147,28 +120,17 @@ export async function handleSearchNormalMode(input: Input,
     const startedTime = Date.now();
     contentCrawlerOptions.crawlerOptions.requestHandlerTimeoutSecs = PLAYWRIGHT_REQUEST_TIMEOUT_NORMAL_MODE_SECS;
 
-    const { crawler: searchCrawler } = await createAndStartSearchCrawler(searchCrawlerOptions, false);
     const {
         crawler: contentCrawler,
         key: contentCrawlerKey,
     } = await createAndStartContentCrawler(contentCrawlerOptions, false);
 
-    const { req, isUrl } = prepareRequest(
+    const { req } = prepareRequest(
         input,
-        searchCrawlerOptions,
-        contentCrawlerKey,
         contentScraperSettings,
     );
-    if (isUrl) {
-        // If the input query is a URL, we don't need to run the search crawler
-        log.info(`Skipping Google Search query because "${input.query}" is a valid URL.`);
-        await addContentCrawlRequest(req, '', contentCrawlerKey);
-    } else {
-        await addSearchRequest(req, searchCrawlerOptions);
-        addTimeMeasureEvent(req.userData!, 'before-cheerio-run', startedTime);
-        log.info(`Running Google Search crawler with request: ${JSON.stringify(req)}`);
-        await searchCrawler!.run();
-    }
+    log.info(`Scraping single page: ${input.query}`);
+    await addContentCrawlRequest(req, '', contentCrawlerKey);
 
     addTimeMeasureEvent(req.userData!, 'before-playwright-run', startedTime);
     log.info(`Running target page crawler with request: ${JSON.stringify(req)}`);
