@@ -1,7 +1,7 @@
 import { Actor } from 'apify';
 import { log } from 'crawlee';
 
-import { createAndStartContentCrawler, createAndStartSearchCrawler } from './crawlers.js';
+import { createAndStartContentCrawler } from './crawlers.js';
 import { processInput, processStandbyInput } from './input.js';
 import { addTimeoutToAllResponses } from './responses.js';
 import { handleSearchNormalMode } from './search.js';
@@ -25,13 +25,11 @@ if (isActorStandby()) {
 
     const {
         input,
-        searchCrawlerOptions,
         contentCrawlerOptions,
         contentScraperSettings,
     } = await processStandbyInput(originalInput);
 
     log.info(`Loaded input: ${JSON.stringify(input)},
-        cheerioCrawlerOptions: ${JSON.stringify(searchCrawlerOptions)},
         contentCrawlerOptions: ${JSON.stringify(contentCrawlerOptions)},
         contentScraperSettings ${JSON.stringify(contentScraperSettings)}
     `);
@@ -40,7 +38,6 @@ if (isActorStandby()) {
 
     app.listen(port, async () => {
         const promises: Promise<unknown>[] = [];
-        promises.push(createAndStartSearchCrawler(searchCrawlerOptions));
         for (const settings of contentCrawlerOptions) {
             promises.push(createAndStartContentCrawler(settings));
         }
@@ -53,20 +50,18 @@ if (isActorStandby()) {
 
     const {
         input,
-        searchCrawlerOptions,
         contentCrawlerOptions,
         contentScraperSettings,
     } = await processInput(originalInput);
 
     log.info(`Loaded input: ${JSON.stringify(input)},
-        cheerioCrawlerOptions: ${JSON.stringify(searchCrawlerOptions)},
         contentCrawlerOptions: ${JSON.stringify(contentCrawlerOptions)},
         contentScraperSettings ${JSON.stringify(contentScraperSettings)}
     `);
 
     let stats = { requestsFinished: 0, requestsFailed: 0 };
     try {
-        stats = await handleSearchNormalMode(input, searchCrawlerOptions, contentCrawlerOptions, contentScraperSettings);
+        stats = await handleSearchNormalMode(input, contentCrawlerOptions, contentScraperSettings);
     } catch (e) {
         const error = e as Error;
         await Actor.fail(error.message as string);
