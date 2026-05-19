@@ -20,6 +20,7 @@ export type Input = {
 
     // target page
     query: string;
+    id?: string;
 
     // content crawler parameters
     dynamicContentWaitSecs: number;
@@ -105,6 +106,7 @@ export type CreateSearchRequestUserData = Optional<SearchCrawlerUserData, 'timeM
 
 export type ContentCrawlerUserData = {
     query: string;
+    id?: string;
     responseId: string;
     timeMeasures: TimeMeasure[];
     searchResult?: OrganicResult;
@@ -113,6 +115,7 @@ export type ContentCrawlerUserData = {
 };
 
 export type Output = {
+    id?: string;
     text?: string | null;
     html?: string | null;
     markdown?: string | null;

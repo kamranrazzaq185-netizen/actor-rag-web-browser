@@ -12,6 +12,12 @@
             "editor": "textfield",
             "pattern": "^https?://.+"
         },
+        "id": {
+            "title": "Passthrough ID",
+            "type": "string",
+            "description": "Optional external ID that will be copied to the dataset output. Use this to match results back to your database row.",
+            "editor": "textfield"
+        },
         "outputFormats": {
             "title": "Output formats",
             "type": "array",

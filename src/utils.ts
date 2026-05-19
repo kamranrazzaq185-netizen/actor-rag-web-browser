@@ -130,12 +130,14 @@ export function createRequest(
     responseId: string,
     contentScraperSettings: ContentScraperSettings,
     timeMeasures: TimeMeasure[] | null = null,
+    id?: string,
 ): RequestOptions<ContentCrawlerUserData> {
     return {
         url: result.url!,
         uniqueKey: randomId(),
         userData: {
             query,
+            id,
             responseId,
             searchResult: result.url && result.title ? result : undefined,
             timeMeasures: timeMeasures ? [...timeMeasures] : [],

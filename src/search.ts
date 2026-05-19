@@ -35,6 +35,7 @@ function prepareRequest(
         responseId,
         contentScraperSettings,
         null,
+        input.id,
     );
 
     addTimeMeasureEvent(req.userData!, 'request-received', Date.now());

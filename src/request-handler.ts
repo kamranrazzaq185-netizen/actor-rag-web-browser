@@ -84,6 +84,7 @@ async function checkValidResponse(
     if (!$ || !isValidContentType(contentType)) {
         log.info(`Skipping URL ${request.loadedUrl} as it could not be parsed.`, { contentType });
         const resultSkipped: Output = {
+            id: request.userData.id,
             crawl: {
                 httpStatusCode: response?.status(),
                 httpStatusMessage: "Couldn't parse the content",
@@ -154,6 +155,8 @@ const appleTouchIcon = normalizeUrl(rawAppleIcon);
 const logo = ogImage || appleTouchIcon || favicon;
 
 const result: Output = {
+    id: request.userData.id,
+
     crawl: {
         httpStatusCode: statusCode,
         httpStatusMessage: 'OK',
@@ -284,6 +287,7 @@ export async function failedRequestHandler(request: Request, err: Error, crawler
     const { responseId } = request.userData;
     if (responseId) {
         const resultErr: Output = {
+            id: request.userData.id,
             crawl: {
                 httpStatusCode: 500,
                 httpStatusMessage: err.message,

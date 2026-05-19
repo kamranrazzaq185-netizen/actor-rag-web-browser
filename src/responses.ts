@@ -53,6 +53,7 @@ export function addEmptyResultToResponse(responseId: string, request: RequestOpt
     if (!res) return;
 
     const result: Partial<Output> = {
+        id: request.userData?.id,
         searchResult: request.userData?.searchResult,
         metadata: { url: request.url },
         crawl: { createdAt: new Date(), requestStatus: ContentCrawlerStatus.PENDING, uniqueKey: request.uniqueKey! },
